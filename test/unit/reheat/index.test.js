@@ -7,7 +7,7 @@ var reheat = require('../../../build/instrument/lib/'),
 
 exports.index = {
 	defineModel: function (test) {
-		test.expect(141);
+		test.expect(147);
 		var connection = new Connection();
 
 		//name of model must be a string
@@ -177,9 +177,10 @@ exports.index = {
 		}
 
 		//if localField or foreignKey is not provided for hasOne, it must be populated with default name
+		var Post;
 		test.doesNotThrow(
 			function () {
-				reheat.defineModel('Post', {
+				Post = reheat.defineModel('Post', {
 					connection: connection,
 					relations: {
 						hasOne: {
@@ -189,7 +190,8 @@ exports.index = {
 				});
 			}
 		);
-		//TODO: test the names for spec
+		test.equal(Post.relations.hasOne.Dummy.localField, 'dummy');
+		test.equal(Post.relations.hasOne.Dummy.foreignKey, 'dummyId');
 		reheat.unregisterModel('Post');
 
 		//localField for belongsTo must be a string
@@ -233,7 +235,7 @@ exports.index = {
 		//if localField or localKey is not provided for belongsTo, it must be populated with default name
 		test.doesNotThrow(
 			function () {
-				reheat.defineModel('Post', {
+				Post = reheat.defineModel('Post', {
 					connection: connection,
 					relations: {
 						belongsTo: {
@@ -243,7 +245,8 @@ exports.index = {
 				});
 			}
 		);
-		//TODO: test the names for spec
+		test.equal(Post.relations.belongsTo.Dummy.localField, 'dummy');
+		test.equal(Post.relations.belongsTo.Dummy.localKey, 'dummyId');
 		reheat.unregisterModel('Post');
 
 		//localField for hasMany must be a string
@@ -287,7 +290,7 @@ exports.index = {
 		//if localField or foreignKey is not provided for hasMany, it must be populated with default name
 		test.doesNotThrow(
 			function () {
-				reheat.defineModel('Post', {
+				Post = reheat.defineModel('Post', {
 					connection: connection,
 					relations: {
 						hasMany: {
@@ -297,7 +300,8 @@ exports.index = {
 				});
 			}
 		);
-		//TODO: test the names for spec
+		test.equal(Post.relations.hasMany.Dummy.localField, 'dummyList');
+		test.equal(Post.relations.hasMany.Dummy.foreignKey, 'dummyId');
 		reheat.unregisterModel('Post');
 
 		test.throws(

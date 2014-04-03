@@ -185,19 +185,19 @@ exports.get = {
 			this.attributes = attrs;
 		}
 		Model.get = get;
-		var nonFunctionTypes = ['string', 123, 123.123, {}, [], true];
 
 		//cb must be a function
-		//TODO: determine why this does not work for everything in support.TYPES_EXCEPT_FUNCTION
-		for (var i = 0; i < nonFunctionTypes.length; i++) {
-			try {
-				get(false, false, nonFunctionTypes[i]);
-				test.ok(false, "get let through non-function value of " + typeof nonFunctionTypes[i] + " in callback");
-			}
-			catch (err) {
-				test.equal(err.type, 'IllegalArgumentError');
-				test.deepEqual(err.errors, { actual: typeof nonFunctionTypes[i], expected: 'function' });
-				test.equal(err.message, 'Model.get(primaryKey[, options], cb): cb: Must be a function!');
+		for (var i = 0; i < support.TYPES_EXCEPT_FUNCTION.length; i++) {
+			if (support.TYPES_EXCEPT_FUNCTION[i]) {
+				try {
+					get(false, false, support.TYPES_EXCEPT_FUNCTION[i]);
+					test.ok(false, "get let through non-function value of " + typeof support.TYPES_EXCEPT_FUNCTION[i] + " in callback");
+				}
+				catch (err) {
+					test.equal(err.type, 'IllegalArgumentError');
+					test.deepEqual(err.errors, { actual: typeof support.TYPES_EXCEPT_FUNCTION[i], expected: 'function' });
+					test.equal(err.message, 'Model.get(primaryKey[, options], cb): cb: Must be a function!');
+				}
 			}
 		}
 
@@ -218,108 +218,71 @@ exports.get = {
 		};
 
 		var queue = [];
-		var nonArrayTypes = ['string', 123, 123.123, {}, true, function () {
-		}];
 
 		//options.with must be an array
-		//TODO: determine why this does not work for everything in support.TYPES_EXCEPT_ARRAY
-		for (var i = 0; i < nonArrayTypes.length; i++) {
-			queue.push((function (j) {
-				Model.get('5', { with: nonArrayTypes[j] }, function (err) {
-					if (err) {
-						test.equal(err.type, 'IllegalArgumentError');
-						test.deepEqual(err.errors, { actual: typeof nonArrayTypes[j], expected: 'array' });
-						test.equal(err.message, 'Model.get(primaryKey[, options], cb): options.with: Must be an array!');
-					}
-					else {
-						test.ok(false, "get let through non-array value of " + typeof nonArrayTypes[j] + " in options.with");
-					}
-				});
-			})(i));
+		for (var i = 0; i < support.TYPES_EXCEPT_ARRAY.length; i++) {
+			if (support.TYPES_EXCEPT_ARRAY[i]) {
+				queue.push((function (j) {
+					Model.get('5', { with: support.TYPES_EXCEPT_ARRAY[j] }, function (err) {
+						if (err) {
+							test.equal(err.type, 'IllegalArgumentError');
+							test.deepEqual(err.errors, { actual: typeof support.TYPES_EXCEPT_ARRAY[j], expected: 'array' });
+							test.equal(err.message, 'Model.get(primaryKey[, options], cb): options.with: Must be an array!');
+						}
+						else {
+							test.ok(false, "get let through non-array value of " + typeof support.TYPES_EXCEPT_ARRAY[j] + " in options.with");
+						}
+					});
+				})(i));
+			}
 		}
 		Promise.all(queue).finally(function () {
 			test.done();
 		});
 	},
-	hasOneError: function (test) {
-		function Model(attrs) {
-			this.attributes = attrs;
-		}
-
-		Model.tableReady = Promise.resolve();
-		Model.tableName = 'test';
-		Model.get = get;
-		Model.connection = {
-			run: Promise.promisify(function (query, options, next) {
-				next(null, { id: 5, name: 'John' });
-			})
-		};
-
-		//non-existent hasOne relationship
-		Model.relations = {
+	relationErrors: function (test) {
+		var relationTypes = [{
 			hasOne: {
 				Snap: {}
 			}
-		};
-		Model.get('5', { with: ['Snap'] }, function (err) {
-			test.equal(err.type, 'RuntimeError');
-			test.equal(err.message, 'Model Model defined hasOne relationship to nonexistent Snap Model!');
-		});
-
-		test.done();
-	},
-	hasManyError: function (test) {
-		function Model(attrs) {
-			this.attributes = attrs;
-		}
-
-		Model.tableReady = Promise.resolve();
-		Model.tableName = 'test';
-		Model.get = get;
-		Model.connection = {
-			run: Promise.promisify(function (query, options, next) {
-				next(null, { id: 5, name: 'John' });
-			})
-		};
-
-		//non-existent hasMany relationship
-		Model.relations = {
+		}, {
 			hasMany: {
 				Crackle: {}
 			}
-		};
-		Model.get('5', { with: ['Snap'] }, function (err) {
-			test.equal(err.type, 'RuntimeError');
-			test.equal(err.message, 'Model Model defined hasMany relationship to nonexistent Crackle Model!');
-		});
-
-		test.done();
-	},
-	belongsToError: function (test) {
-		function Model(attrs) {
-			this.attributes = attrs;
-		}
-
-		Model.tableReady = Promise.resolve();
-		Model.tableName = 'test';
-		Model.get = get;
-		Model.connection = {
-			run: Promise.promisify(function (query, options, next) {
-				next(null, { id: 5, name: 'John' });
-			})
-		};
-
-		//non-existent belongsTo relationship
-		Model.relations = {
+		}, {
 			belongsTo: {
 				Pop: {}
 			}
-		};
-		Model.get('5', { with: ['Snap'] }, function (err) {
-			test.equal(err.type, 'RuntimeError');
-			test.equal(err.message, 'Model Model defined belongsTo relationship to nonexistent Pop Model!');
-		});
+		}];
+		var relationNames = ['hasOne', 'hasMany', 'belongsTo'];
+		var objNames = ['Snap', 'Crackle', 'Pop'];
+		var queue = [];
 
-		test.done();
+		for (var i = 0; i < relationTypes.length; i++) {
+			queue.push((function (j) {
+				function Model(attrs) {
+					this.attributes = attrs;
+				}
+
+				Model.tableReady = Promise.resolve();
+				Model.tableName = 'test';
+				Model.get = get;
+				Model.connection = {
+					run: Promise.promisify(function (query, options, next) {
+						next(null, { id: 5, name: 'John' });
+					})
+				};
+				Model.relations = relationTypes[j];
+
+				Model.get('5', { with: [objNames[j]] }, function (err) {
+					test.equal(err.type, 'RuntimeError');
+					test.equal(err.message, 'Model Model defined ' + relationNames[j] + ' relationship to nonexistent ' + objNames[j] + ' Model!');
+				});
+			})(i));
+		}
+
+		Promise.all(queue).finally(function () {
+			test.done();
+		});
 	}
 };

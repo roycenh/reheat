@@ -306,5 +306,93 @@ exports.save = {
 		Promise.all(queue).finally(function () {
 			test.done();
 		});
+	},
+	callback: function (test) {
+		test.expect(18);
+
+		var instance = {
+			attributes: {
+				name: 'John'
+			},
+			save: save,
+			constructor: {
+				connection: {},
+				relations: {},
+				timestamps: true,
+				tableReady: Promise.resolve()
+			},
+			isNew: function () {
+				return true;
+			}
+		};
+
+		for (var i = 0; i < support.TYPES_EXCEPT_FUNCTION.length; i++) {
+			if (support.TYPES_EXCEPT_FUNCTION[i]) {
+				try {
+					instance.save(false, support.TYPES_EXCEPT_FUNCTION[i]);
+					test.check(false, 'save let non-function type through');
+				}
+				catch (err) {
+					test.equal(err.type, 'IllegalArgumentError');
+					test.deepEqual(err.errors, { actual: typeof support.TYPES_EXCEPT_FUNCTION[i], expected: 'function' });
+					test.equal(err.message, 'Model#save([options], cb): cb: Must be a function!');
+				}
+			}
+		}
+
+		test.done();
+	},
+	relationErrors: function (test) {
+		test.expect(6);
+
+		var relationTypes = [{
+			hasOne: {
+				Snap: {}
+			}
+		}, {
+			hasMany: {
+				Crackle: {}
+			}
+		}, {
+			belongsTo: {
+				Pop: {}
+			}
+		}];
+		var relationNames = ['hasOne', 'hasMany', 'belongsTo'];
+		var objNames = ['Snap', 'Crackle', 'Pop'];
+		var queue = [];
+		var dummyObj = {};
+
+		for (var i = 0; i < relationTypes.length; i++) {
+			queue.push((function (j) {
+				var instance = {
+					attributes: {
+						name: 'John'
+					},
+					save: save,
+					constructor: {
+						connection: {},
+						timestamps: true,
+						relations: relationTypes[j],
+						tableReady: Promise.resolve()
+					},
+					isNew: function () {
+						return false;
+					},
+					get: function () {
+						return '5';
+					}
+				};
+
+				instance.save(dummyObj, function (err) {
+					test.equal(err.type, 'RuntimeError');
+					test.equal(err.message, 'undefined Model defined ' + relationNames[j] + ' relationship to nonexistent ' + objNames[j] + ' Model!');
+				});
+			})(i));
+		}
+
+		Promise.all(queue).finally(function () {
+			test.done();
+		});
 	}
 };
